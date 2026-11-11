@@ -907,11 +907,39 @@ function Nook() {
   /* ---- session ---- */
   useEffect(() => {
     let on = true;
-    supabase.auth.getSession().then(({ data }) => {
+
+    const finishAuthCallback = async () => {
+      const search = new URLSearchParams(window.location.search);
+      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      const tokenHash = search.get("token_hash") || hash.get("token_hash");
+      const type = search.get("type") || hash.get("type");
+      const code = search.get("code") || hash.get("code");
+
+      if (!tokenHash && !code) return;
+
+      try {
+        if (code) {
+          await supabase.auth.exchangeCodeForSession(code);
+        } else if (tokenHash && type) {
+          await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
+        }
+        const next = new URL(window.location.href);
+        next.search = "";
+        next.hash = "";
+        window.history.replaceState({}, "", next.toString());
+      } catch (e) {
+        console.error("Email verification callback failed:", e);
+      }
+    };
+
+    (async () => {
+      await finishAuthCallback();
+      const { data } = await supabase.auth.getSession();
       if (!on) return;
       setSession(data.session);
       if (!data.session) setBooting(false);
-    });
+    })();
+
     // Keep this callback synchronous: just store the session; the effect below loads the profile.
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
     return () => {

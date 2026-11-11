@@ -22,10 +22,14 @@ export async function signUp({ email, password, username, name }) {
   if (e1) return { error: e1.message };
   if (!free) return { error: "That username is taken. Pick another, or sign in." };
 
+  const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { username, name } },
+    options: {
+      data: { username, name },
+      ...(redirectTo ? { emailRedirectTo: redirectTo } : {}),
+    },
   });
   if (error) return { error: error.message };
   // When "Confirm email" is on in Supabase, there is no session until the email link is clicked.
